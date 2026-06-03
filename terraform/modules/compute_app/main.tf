@@ -1,22 +1,52 @@
 data "aws_ami" "ubuntu" {
   most_recent = true
-  filter { name = "name"; values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"] }
-  filter { name = "virtualization-type"; values = ["hvm"] }
-  owners      = ["099720109477"] # Canonical
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+  owners = ["099720109477"] # Canonical
 }
 
 resource "aws_security_group" "alb_sg" {
   name   = "alb-sg-${var.region}"
   vpc_id = var.vpc_id
-  ingress { from_port = 80; to_port = 80; protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
-  egress { from_port = 0; to_port = 0; protocol = "-1"; cidr_blocks = ["0.0.0.0/0"] }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 resource "aws_security_group" "instance_sg" {
   name   = "instance-sg-${var.region}"
   vpc_id = var.vpc_id
-  ingress { from_port = 80; to_port = 80; protocol = "tcp"; security_groups = [aws_security_group.alb_sg.id] }
-  egress { from_port = 0; to_port = 0; protocol = "-1"; cidr_blocks = ["0.0.0.0/0"] }
+
+  ingress {
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 resource "aws_lb" "app_lb" {
@@ -32,14 +62,22 @@ resource "aws_lb_target_group" "tg" {
   port     = 80
   protocol = "HTTP"
   vpc_id   = var.vpc_id
-  health_check { path = "/"; matcher = "200" }
+
+  health_check {
+    path    = "/"
+    matcher = "200"
+  }
 }
 
 resource "aws_lb_listener" "front_end" {
   load_balancer_arn = aws_lb.app_lb.arn
   port              = "80"
   protocol          = "HTTP"
-  default_action { type = "forward"; target_group_arn = aws_lb_target_group.tg.arn }
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tg.arn
+  }
 }
 
 resource "aws_launch_template" "asg_template" {
